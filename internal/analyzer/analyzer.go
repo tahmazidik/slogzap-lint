@@ -2,9 +2,8 @@ package analyzer
 
 import (
 	"go/ast"
-	"go/token"
-	"strconv"
 
+	"example.com/slogzaplint/internal/rules"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -55,31 +54,13 @@ func run(pass *analysis.Pass) (any, error) {
 			if !ok {
 				return true
 			}
-			// репортим
-			pass.Reportf(call.Lparen, "slog.%s message: %q", sel.Sel.Name, msg)
+			// репортим и валидируем
+			violations := rules.ValidateMessage(msg)
+			for _, v := range violations {
+				pass.Reportf(call.Lparen, "slog message rule violation: %s", v)
+			}
 			return true
 		})
 	}
 	return nil, nil
-}
-
-func stringLiteral(expr ast.Expr) (string, bool) {
-	lit, ok := expr.(*ast.BasicLit)
-	if !ok {
-		return "", false
-	}
-
-	if lit.Kind != token.STRING {
-		return "", false
-	}
-
-	return unquote(lit.Value)
-}
-
-func unquote(raw string) (string, bool) {
-	s, err := strconv.Unquote(raw)
-	if err != nil {
-		return "", false
-	}
-	return s, true
 }

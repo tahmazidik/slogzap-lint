@@ -1,7 +1,7 @@
 package main
 
 import (
-	"example.com/slogzaplint/analyzer"
+	"example.com/slogzaplint/internal/analyzer"
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
