@@ -27,16 +27,17 @@ func ValidateMessage(msg string) []string {
 		}
 	}
 
-	if containsCyrillic(trimmed) {
+	hasCyr := containsCyrillic(trimmed)
+	if hasCyr {
 		out = append(out, "message must be English-only (Cyrillic detected)")
-	}
-
-	if bad, ok := firstForbiddenSymbol(trimmed); ok {
-		out = append(out, "message contains forbidden symbol: "+strconv.QuoteRune(bad))
+	} else {
+		if bad, ok := firstForbiddenSymbol(trimmed); ok {
+			out = append(out, "message contains forbidden symbol: "+strconv.QuoteRune(bad))
+		}
 	}
 
 	if kw, ok := containsSensitiveKeyword(trimmed); ok {
-		out = append(out, "message my contain sensitive data (keyword: "+kw+")")
+		out = append(out, "message may contain sensitive data (keyword: "+kw+")")
 	}
 	return out
 }
