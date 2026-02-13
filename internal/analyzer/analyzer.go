@@ -8,59 +8,47 @@ import (
 )
 
 var Analyzer = &analysis.Analyzer{
-	Name: "analyzer",
-	Doc:  "checks log messages for slog and zap (MVP: just directs calls)",
+	Name: "logmsg",
+	Doc:  "enforces log message format for slog and zap",
 	Run:  run,
-}
-
-var slogMethods = map[string]bool{
-	"Debug": true,
-	"Info":  true,
-	"Warn":  true,
-	"Error": true,
 }
 
 func run(pass *analysis.Pass) (any, error) {
 	for _, file := range pass.Files {
+		zapPresent := fileImportsZap(file)
+
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
 				return true
 			}
 
-			// Проверяем что вызывается селектор
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok {
+			// SLOG
+			if level, ok := isSlogCall(call); ok {
+				checkAndReport(pass, call, "slog", level)
 				return true
 			}
 
-			// X должен быть идентификатором slog
-			xIdent, ok := sel.X.(*ast.Ident)
-			if !ok || xIdent.Name != "slog" {
+			// ZAP
+			if level, ok := isZapCall(call, zapPresent); ok {
+				checkAndReport(pass, call, "zap", level)
 				return true
 			}
 
-			// sel должен быть одним из методов slog
-			if !slogMethods[sel.Sel.Name] {
-				return true
-			}
-
-			// 1-й аргумент должен суще и быть строковым литералом
-			if len(call.Args) == 0 {
-				return true
-			}
-			msg, ok := stringLiteral(call.Args[0])
-			// тогда просто пропускаем не-литералы
-			if !ok {
-				return true
-			}
-			// репортим и валидируем
-			violations := rules.ValidateMessage(msg)
-			for _, v := range violations {
-				pass.Reportf(call.Lparen, "slog message rule violation: %s", v)
-			}
 			return true
 		})
 	}
+
 	return nil, nil
+}
+
+func checkAndReport(pass *analysis.Pass, call *ast.CallExpr, prefix, level string) {
+	if len(call.Args) == 0 {
+		return
+	}
+	msg, ok := stringLiteral(call.Args[0])
+	if !ok {
+		return
+	}
+	reportViolations(pass, call, prefix, level, rules.ValidateMessage(msg))
 }
