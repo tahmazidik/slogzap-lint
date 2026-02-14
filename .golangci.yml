@@ -1,0 +1,18 @@
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  default: none
+  enable:
+    - logmsg
+
+  settings:
+    custom:
+      logmsg:
+        type: module
+        description: "validate slog/zap log messages"
+        settings:
+          levels: ["Info", "Warn", "Error"]
+          sensitiveKeys: ["password", "pass", "pwd", "token", "api_key", "secret", "key"]

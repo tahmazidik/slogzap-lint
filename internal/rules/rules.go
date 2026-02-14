@@ -14,7 +14,7 @@ var sensitiveKeywords = []string{
 	"cookie", "session",
 }
 
-func ValidateMessage(msg string) []string {
+func ValidateMessageWithSensitiveKeys(msg string, keys []string) []string {
 	var out []string
 	trimmed := strings.TrimSpace(msg)
 	if trimmed == "" {
@@ -36,10 +36,31 @@ func ValidateMessage(msg string) []string {
 		}
 	}
 
-	if kw, ok := containsSensitiveKeyword(trimmed); ok {
+	// ВАЖНО: используем keys, если они пришли; иначе — дефолтный список
+	if kw, ok := containsSensitiveKeywordFrom(trimmed, keys); ok {
 		out = append(out, "message may contain sensitive data (keyword: "+kw+")")
 	}
+
 	return out
+}
+
+func containsSensitiveKeywordFrom(s string, keys []string) (string, bool) {
+	low := strings.ToLower(s)
+
+	list := keys
+	if len(list) == 0 {
+		list = sensitiveKeywords
+	}
+
+	for _, kw := range list {
+		if kw == "" {
+			continue
+		}
+		if strings.Contains(low, strings.ToLower(kw)) {
+			return kw, true
+		}
+	}
+	return "", false
 }
 
 func firstUnicodeLetter(s string) (rune, bool) {
@@ -73,14 +94,4 @@ func firstForbiddenSymbol(s string) (rune, bool) {
 		return r, true
 	}
 	return 0, false
-}
-
-func containsSensitiveKeyword(s string) (string, bool) {
-	low := strings.ToLower(s)
-	for _, kw := range sensitiveKeywords {
-		if strings.Contains(low, kw) {
-			return kw, true
-		}
-	}
-	return "", false
 }

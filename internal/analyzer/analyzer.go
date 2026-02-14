@@ -7,42 +7,42 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "logmsg",
-	Doc:  "enforces log message format for slog and zap",
-	Run:  run,
-}
-
-func run(pass *analysis.Pass) (any, error) {
-	for _, file := range pass.Files {
-		zapPresent := fileImportsZap(file)
-
-		ast.Inspect(file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-
-			// slog
-			if level, ok := isSlogCall(call); ok {
-				checkAndReport(pass, call, "slog", level)
-				return true
-			}
-
-			// zap
-			if level, ok := isZapCall(call, zapPresent); ok {
-				checkAndReport(pass, call, "zap", level)
-				return true
-			}
-
-			return true
-		})
+func New(cfg Settings) *analysis.Analyzer {
+	levelSet := make(map[string]bool, len(cfg.Levels))
+	for _, l := range cfg.Levels {
+		levelSet[l] = true
 	}
 
-	return nil, nil
+	return &analysis.Analyzer{
+		Name: "logmsg",
+		Doc:  "enforces log message format for slog and zap",
+		Run: func(pass *analysis.Pass) (any, error) {
+			for _, file := range pass.Files {
+				zapPresent := fileImportsZap(file)
+
+				ast.Inspect(file, func(n ast.Node) bool {
+					call, ok := n.(*ast.CallExpr)
+					if !ok {
+						return true
+					}
+
+					if level, ok := isSlogCall(call, levelSet); ok {
+						checkAndReport(pass, call, "slog", level, cfg)
+						return true
+					}
+					if level, ok := isZapCall(call, zapPresent, levelSet); ok {
+						checkAndReport(pass, call, "zap", level, cfg)
+						return true
+					}
+					return true
+				})
+			}
+			return nil, nil
+		},
+	}
 }
 
-func checkAndReport(pass *analysis.Pass, call *ast.CallExpr, prefix, level string) {
+func checkAndReport(pass *analysis.Pass, call *ast.CallExpr, prefix, level string, cfg Settings) {
 	if len(call.Args) == 0 {
 		return
 	}
@@ -50,5 +50,8 @@ func checkAndReport(pass *analysis.Pass, call *ast.CallExpr, prefix, level strin
 	if !ok {
 		return
 	}
-	reportViolations(pass, call, prefix, level, rules.ValidateMessage(msg))
+
+	violations := rules.ValidateMessageWithSensitiveKeys(msg, cfg.SensitiveKeys)
+	
+	reportViolations(pass, call, prefix, level, violations)
 }

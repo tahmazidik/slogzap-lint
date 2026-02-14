@@ -1,0 +1,5 @@
+version: v2.7.0
+plugins:
+  - module: example.com/slogzaplint
+    path: .
+    import: example.com/slogzaplint/gclplugin

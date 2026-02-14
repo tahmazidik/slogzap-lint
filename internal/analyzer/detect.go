@@ -2,14 +2,7 @@ package analyzer
 
 import "go/ast"
 
-var logLevels = map[string]bool{
-	"Debug": true,
-	"Info":  true,
-	"Warn":  true,
-	"Error": true,
-}
-
-func isSlogCall(call *ast.CallExpr) (string, bool) {
+func isSlogCall(call *ast.CallExpr, levels map[string]bool) (string, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return "", false
@@ -20,19 +13,20 @@ func isSlogCall(call *ast.CallExpr) (string, bool) {
 		return "", false
 	}
 
-	if !logLevels[sel.Sel.Name] {
+	if !levels[sel.Sel.Name] {
 		return "", false
 	}
 
 	return sel.Sel.Name, true
 }
 
-func isZapCall(call *ast.CallExpr, zapPresent bool) (string, bool) {
+func isZapCall(call *ast.CallExpr, zapPresent bool, levels map[string]bool) (string, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return "", false
 	}
-	if !logLevels[sel.Sel.Name] {
+
+	if !levels[sel.Sel.Name] {
 		return "", false
 	}
 
