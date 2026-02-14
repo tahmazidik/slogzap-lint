@@ -23,13 +23,13 @@ func run(pass *analysis.Pass) (any, error) {
 				return true
 			}
 
-			// SLOG
+			// slog
 			if level, ok := isSlogCall(call); ok {
 				checkAndReport(pass, call, "slog", level)
 				return true
 			}
 
-			// ZAP
+			// zap
 			if level, ok := isZapCall(call, zapPresent); ok {
 				checkAndReport(pass, call, "zap", level)
 				return true
