@@ -54,7 +54,7 @@ func checkAndReport(pass *analysis.Pass, call *ast.CallExpr, prefix, level strin
 		return
 	}
 
-	violations := rules.ValidateMessageWithSensitiveKeys(msg, cfg.SensitiveKeys)
+	violations := rules.ValidateMessage(msg, cfg.SensitiveKeys)
 
 	reportViolations(pass, call, prefix, level, violations)
 }

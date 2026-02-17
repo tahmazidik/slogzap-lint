@@ -1,97 +1,27 @@
 package rules
 
 import (
-	"strconv"
-	"strings"
-	"unicode"
+	"example.com/slogzaplint/internal/rules/checks/language"
+	"example.com/slogzaplint/internal/rules/checks/lowercase"
+	"example.com/slogzaplint/internal/rules/checks/sensitive"
+	"example.com/slogzaplint/internal/rules/checks/symbols"
+	"example.com/slogzaplint/internal/rules/core"
 )
 
-var sensitiveKeywords = []string{
-	"password", "passwd", "pwd",
-	"token", "access_token", "refresh_token",
-	"secret", "api_key", "apikey",
-	"authorization", "bearer",
-	"cookie", "session",
-}
+type Violation = core.Violation
+type Kind = core.Kind
 
-func ValidateMessageWithSensitiveKeys(msg string, keys []string) []string {
-	var out []string
-	trimmed := strings.TrimSpace(msg)
-	if trimmed == "" {
-		return out
+func ValidateMessage(msg string, sensitiveKeys []string) []core.Violation {
+	var out []core.Violation
+
+	out = append(out, lowercase.CheckLowercaseStart(msg)...)
+
+	cyr := language.CheckEnglishOnly(msg)
+	out = append(out, cyr...)
+	if len(cyr) == 0 {
+		out = append(out, symbols.CheckForbiddenSymbols(msg)...)
 	}
 
-	if firstLetter, ok := firstUnicodeLetter(trimmed); ok {
-		if !unicode.IsLower(firstLetter) {
-			out = append(out, "message must start with a lowercase letter")
-		}
-	}
-
-	hasCyr := containsCyrillic(trimmed)
-	if hasCyr {
-		out = append(out, "message must be English-only (Cyrillic detected)")
-	} else {
-		if bad, ok := firstForbiddenSymbol(trimmed); ok {
-			out = append(out, "message contains forbidden symbol: "+strconv.QuoteRune(bad))
-		}
-	}
-
-	// ВАЖНО: используем keys, если они пришли; иначе — дефолтный список
-	if kw, ok := containsSensitiveKeywordFrom(trimmed, keys); ok {
-		out = append(out, "message may contain sensitive data (keyword: "+kw+")")
-	}
-
+	out = append(out, sensitive.CheckSensitive(msg, sensitiveKeys)...)
 	return out
-}
-
-func containsSensitiveKeywordFrom(s string, keys []string) (string, bool) {
-	low := strings.ToLower(s)
-
-	list := keys
-	if len(list) == 0 {
-		list = sensitiveKeywords
-	}
-
-	for _, kw := range list {
-		if kw == "" {
-			continue
-		}
-		if strings.Contains(low, strings.ToLower(kw)) {
-			return kw, true
-		}
-	}
-	return "", false
-}
-
-func firstUnicodeLetter(s string) (rune, bool) {
-	for _, r := range s {
-		if unicode.IsLetter(r) {
-			return r, true
-		}
-	}
-	return 0, false
-}
-
-func containsCyrillic(s string) bool {
-	for _, r := range s {
-		if r >= 0x0400 && r <= 0x04FF {
-			return true
-		}
-	}
-	return false
-}
-
-func firstForbiddenSymbol(s string) (rune, bool) {
-	for _, r := range s {
-		if r == ' ' {
-			continue
-		}
-
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-			continue
-		}
-
-		return r, true
-	}
-	return 0, false
 }
