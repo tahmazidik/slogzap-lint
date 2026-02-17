@@ -84,13 +84,13 @@ func normalizeLevels(in []string) []string {
 		lower := strings.ToLower(l)
 		switch lower {
 		case "debug":
-			out = append(out, "debug")
+			out = append(out, "Debug")
 		case "info":
-			out = append(out, "info")
+			out = append(out, "Info")
 		case "warn":
-			out = append(out, "warn")
+			out = append(out, "Warn")
 		case "error":
-			out = append(out, "error")
+			out = append(out, "Error")
 		default:
 			out = append(out, l)
 		}
