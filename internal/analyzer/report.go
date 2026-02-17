@@ -10,6 +10,10 @@ import (
 func reportViolations(pass *analysis.Pass, call *ast.CallExpr, prefix, level string, violations []string) {
 	lvl := strings.ToLower(level)
 	for _, v := range violations {
-		pass.Reportf(call.Lparen, "%s %s: %s", prefix, lvl, v)
+		pos := call.Lparen
+		if len(call.Args) > 0 {
+			pos = call.Args[0].Pos()
+		}
+		pass.Reportf(pos, "%s %s: %s", prefix, lvl, v)
 	}
 }

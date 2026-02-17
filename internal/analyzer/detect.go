@@ -1,38 +1,90 @@
 package analyzer
 
-import "go/ast"
+import (
+	"go/ast"
+	"go/types"
 
-func isSlogCall(call *ast.CallExpr, levels map[string]bool) (string, bool) {
+	"golang.org/x/tools/go/analysis"
+)
+
+func isSlogCall(pass *analysis.Pass, call *ast.CallExpr, levels map[string]bool) (string, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return "", false
 	}
 
-	xIdent, ok := sel.X.(*ast.Ident)
-	if !ok || xIdent.Name != "slog" {
+	level := sel.Sel.Name
+	if !levels[level] {
 		return "", false
 	}
 
-	if !levels[sel.Sel.Name] {
+	id, ok := sel.X.(*ast.Ident)
+	if !ok {
 		return "", false
 	}
 
-	return sel.Sel.Name, true
+	obj := pass.TypesInfo.Uses[id]
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok {
+		return "", false
+	}
+
+	if pkgName.Imported().Path() != "log/slog" {
+		return "", false
+	}
+
+	return level, true
 }
 
-func isZapCall(call *ast.CallExpr, zapPresent bool, levels map[string]bool) (string, bool) {
+func isZapCall(pass *analysis.Pass, call *ast.CallExpr, levels map[string]bool) (string, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return "", false
 	}
 
-	if !levels[sel.Sel.Name] {
+	level := sel.Sel.Name
+	if !levels[level] {
 		return "", false
 	}
 
-	if !zapPresent && !exprLooksLikeZap(sel.X) {
+	selection := pass.TypesInfo.Selections[sel]
+	if selection == nil {
 		return "", false
 	}
 
-	return sel.Sel.Name, true
+	if selection.Kind() != types.MethodVal {
+		return "", false
+	}
+
+	recv := selection.Recv()
+	if recv == nil {
+		return "", false
+	}
+
+	t := recv
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+
+	named, ok := t.(*types.Named)
+	if !ok {
+		return "", false
+	}
+
+	obj := named.Obj()
+	pkg := obj.Pkg()
+	if pkg == nil {
+		return "", false
+	}
+
+	if pkg.Path() != "go.uber.org/zap" {
+		return "", false
+	}
+
+	switch obj.Name() {
+	case "Logger", "SugaredLogger":
+		return level, true
+	default:
+		return "", false
+	}
 }

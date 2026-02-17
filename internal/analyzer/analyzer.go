@@ -17,20 +17,23 @@ func New(cfg Settings) *analysis.Analyzer {
 		Name: "logmsg",
 		Doc:  "enforces log message format for slog and zap",
 		Run: func(pass *analysis.Pass) (any, error) {
-			for _, file := range pass.Files {
-				zapPresent := fileImportsZap(file)
+			//Чтобы неверны конфиг сразу выдавал ошибку
+			if err := cfg.Validate(); err != nil {
+				return nil, err
+			}
 
+			for _, file := range pass.Files {
 				ast.Inspect(file, func(n ast.Node) bool {
 					call, ok := n.(*ast.CallExpr)
 					if !ok {
 						return true
 					}
 
-					if level, ok := isSlogCall(call, levelSet); ok {
+					if level, ok := isSlogCall(pass, call, levelSet); ok {
 						checkAndReport(pass, call, "slog", level, cfg)
 						return true
 					}
-					if level, ok := isZapCall(call, zapPresent, levelSet); ok {
+					if level, ok := isZapCall(pass, call, levelSet); ok {
 						checkAndReport(pass, call, "zap", level, cfg)
 						return true
 					}
@@ -52,6 +55,6 @@ func checkAndReport(pass *analysis.Pass, call *ast.CallExpr, prefix, level strin
 	}
 
 	violations := rules.ValidateMessageWithSensitiveKeys(msg, cfg.SensitiveKeys)
-	
+
 	reportViolations(pass, call, prefix, level, violations)
 }
