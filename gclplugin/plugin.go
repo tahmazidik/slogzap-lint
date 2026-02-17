@@ -34,4 +34,6 @@ func (p *Plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	return []*analysis.Analyzer{analyzer.New(p.cfg)}, nil
 }
 
-func (p *Plugin) GetLoadMode() string { return "types" }
+func (p *Plugin) GetLoadMode() string {
+	return "types"
+}
